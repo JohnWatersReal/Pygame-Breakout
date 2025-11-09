@@ -39,6 +39,13 @@ ball_speed_x = 4
 ball_speed_y = 2 * ball_speed_x
 ball_vector = pygame.Vector2(ball_speed_x, ball_speed_y)
 player_width = 100
+relic_width = 20
+relic_height = 20
+
+# Transition states
+GAME_STATE = 0
+PLAY_SCREEN = 0
+RELIC_SCREEN = 1
 
 class Player(pygame.sprite.Sprite):
     def __init__(self, *groups):
@@ -88,6 +95,22 @@ class Projectile(pygame.sprite.Sprite):
         if (self.rect.y - 10 <= 0):
             self.vector.y *= -1
             
+class Relic(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+        self.surf = pygame.Surface((relic_width, relic_height))
+        self.rect = self.surf.get_rect()
+        
+    def on_pickup():
+        return
+    
+class Lengthen(Relic):
+    def __init__(self):
+        super().__init__()
+        self.name = "Lengthen"
+        self.desc = "Extend the paddle by 15%"
+        self.surf.fill(green)
+            
 def spawn(xNumber, yNumber, array):
     for y in range(yNumber):
         for x in range(xNumber):
@@ -105,31 +128,13 @@ def pause_check(paused):
                 if event.key == K_ESCAPE:
                     paused = False 
 
-# Global variables
-player = Player()
-projectile = Projectile(player)
-enemies = []
+def do_relic_loop():
+    DISPLAYSURF.fill(black)
 
-# Game loop begin
-while True:
-
-    # Handle events
-    for event in pygame.event.get():
-        if event.type == QUIT:
-            pygame.quit() # close pygame window
-            sys.exit()    # stop the python script
-        elif event.type == KEYDOWN:
-            if event.key == K_ESCAPE:
-                pygame.draw.rect(DISPLAYSURF, white, pause_rect)
-                paused = score_font.render("PAUSED", True, black)
-                rect = paused.get_rect(center=(window_width/2, window_height/2))
-                DISPLAYSURF.blit(paused, rect)
-                pygame.display.update()
-                pause_check(True)
-                 
+def do_play_loop():
     # Draw the background
     DISPLAYSURF.fill(black)
-                 
+                
     # handle the player
     player.draw(DISPLAYSURF)
     projectile.move()
@@ -144,28 +149,18 @@ while True:
             projectile.vector.x *= -1
         else:
             projectile.rect.bottom = player.rect.top
-            # Calculate where on the paddle it hit (as a ratio)
-            hit_pos = (projectile.rect.x - player.x) / (player_width / 2)
+            # Calculate where on the paddle it hit
+            hit_pos = (projectile.rect.x - player.rect.x) / (player_width / 2)
 
             # Clamp between -1 (left) and 1 (right)
             hit_pos = max(-1, min(1, hit_pos))
-
-            # Define bounce angle range (e.g. -60° to 60°)
-            max_angle = 60
-
-            # Convert to radians
+            max_angle = 67
             angle = math.radians(hit_pos * max_angle)
 
-            # Set new vector — speed stays constant
+            # Make vector using the angle
             speed = projectile.vector.length()
             projectile.vector = pygame.Vector2(speed * math.sin(angle), -speed * math.cos(angle))
             
-    # Spawn enemies
-    if not enemies:
-        spawn(3, 2, enemies)
-    for entity in enemies:
-        entity.draw(DISPLAYSURF)
-        
     # If projectile hits enemy
     i = projectile.rect.collidelist(enemies)
     if (i != -1):
@@ -189,13 +184,56 @@ while True:
     
     i = -1
     
-    # player.rect.centerx = projectile.rect.centerx - uncomment to autoplay
+    # Spawn enemies
+    for entity in enemies:
+        entity.draw(DISPLAYSURF)
+    if not enemies:
+        spawn(3, 2, enemies)
+        return RELIC_SCREEN
+    else:
+        return PLAY_SCREEN
+        
+
+# Global variables
+player = Player()
+projectile = Projectile(player)
+enemies = []
+relic = Lengthen()
+
+
+# ===== GAME LOOP BEGIN ===== #
+while True:
     
-    # Show score
+    # Handle events
+    for event in pygame.event.get():
+        if event.type == QUIT:
+            pygame.quit() # close pygame window
+            sys.exit()    # stop the python script
+        elif event.type == KEYDOWN:
+            if event.key == K_ESCAPE:
+                pygame.draw.rect(DISPLAYSURF, white, pause_rect)
+                paused = score_font.render("PAUSED", True, black)
+                rect = paused.get_rect(center=(window_width/2, window_height/2))
+                DISPLAYSURF.blit(paused, rect)
+                pygame.display.update()
+                pause_check(True)
+                
+    if not enemies:
+        spawn(2, 2, enemies)
+    if GAME_STATE == PLAY_SCREEN:
+       GAME_STATE = do_play_loop()
+    elif GAME_STATE == RELIC_SCREEN:
+        do_relic_loop()
+    
+    #player.rect.centerx = projectile.rect.centerx #- uncomment to autoplay
+    
+    
+    pygame.display.update()
+    FramePerSec.tick(FPS)
+    
+# Show score - for reference
     # score_string = score_font.render(("Score: " + str(score)), True, white)
     # DISPLAYSURF.blit(score_string, (30, 30))
     # high_score_text = high_score_font.render(("High Score: " + str(high_score)), True, white)
     # DISPLAYSURF.blit(high_score_text, (30, 120))
     
-    pygame.display.update()
-    FramePerSec.tick(FPS)
