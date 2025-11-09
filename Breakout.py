@@ -52,23 +52,19 @@ class Player(pygame.sprite.Sprite):
         key = pygame.key.get_pressed()
         dx = 10
         if key[pygame.K_LEFT]:
-            self.x -= dx
             self.rect = self.rect.move(-dx, 0)
         elif key[pygame.K_RIGHT]:
-            self.x += dx
             self.rect = self.rect.move(dx, 0)
             
     def draw(self, surface):
         pygame.draw.rect(surface, grey, self.rect, 0, 8)
-        pygame.draw.line(surface, red, (self.rect.x, self.rect.y), (self.rect.x + 100, self.rect.y))
+        #pygame.draw.line(surface, red, (self.rect.x, self.rect.y), (self.rect.right, self.rect.y)) - uncomment to see hitbox
         
 class Enemy(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__() 
-        self.x = x
-        self.y = y
         self.surf = pygame.Surface((100, 20))    
-        self.rect = self.surf.get_rect(topleft=(self.x, self.y))  
+        self.rect = self.surf.get_rect(topleft=(x, y))  
         
     def draw(self, surface):
         pygame.draw.rect(surface, grey, self.rect)
@@ -81,7 +77,7 @@ class Projectile(pygame.sprite.Sprite):
         self.vector = ball_vector
         
     def draw(self, surface):
-        pygame.draw.rect(surface, blue, self.rect)
+        #pygame.draw.rect(surface, blue, self.rect) - uncomment to draw hitbox
         pygame.draw.circle(surface, grey, self.rect.center, 10)
         
     def move(self):
@@ -144,9 +140,10 @@ while True:
 
     # If circle hits bouncer
     if pygame.Rect.colliderect(player.rect, projectile.rect):
-        if (projectile.rect.y > player.rect.y + 8):
+        if (projectile.rect.y >= player.rect.y):
             projectile.vector.x *= -1
         else:
+            projectile.rect.bottom = player.rect.top
             # Calculate where on the paddle it hit (as a ratio)
             hit_pos = (projectile.rect.x - player.x) / (player_width / 2)
 
@@ -165,7 +162,7 @@ while True:
             
     # Spawn enemies
     if not enemies:
-        spawn(7, 8, enemies)
+        spawn(3, 2, enemies)
     for entity in enemies:
         entity.draw(DISPLAYSURF)
         
@@ -173,17 +170,27 @@ while True:
     i = projectile.rect.collidelist(enemies)
     if (i != -1):
         enemy = enemies[i]
-        overlap_x = min(projectile.rect.right, enemy.rect.right) - max(projectile.rect.left, enemy.rect.left)
-        overlap_y = min(projectile.rect.bottom, enemy.rect.bottom) - max(projectile.rect.top, enemy.rect.top)
-
-        if overlap_x < overlap_y:
-            projectile.vector.x *= -1  # Hit side
-        else:
-            projectile.vector.y *= -1  # Hit top/bottom
+        relx = projectile.rect.centerx - enemy.rect.x
+        rely = projectile.rect.centery - enemy.rect.y
+        if (relx < abs(projectile.vector.x) and relx <= rely and relx + rely <= 20):
+            projectile.vector.x *= -1
+            projectile.rect.right = enemy.rect.left
+        elif (relx > 100 - abs(projectile.vector.x) and relx + rely >= 100 and relx - rely >= 80):
+            projectile.vector.x *= -1
+            projectile.rect.left = enemy.rect.right
+        elif (rely < abs(projectile.vector.y) and relx > rely and relx + rely < 100):
+            projectile.vector.y *= -1
+            projectile.rect.bottom = enemy.rect.top
+        elif (rely > 20 - abs(projectile.vector.y) and relx + rely > 20 and relx - rely < 80):
+            projectile.vector.y *= -1
+            projectile.rect.top = enemy.rect.bottom
 
         enemies.remove(enemy)
     
     i = -1
+    
+    # player.rect.centerx = projectile.rect.centerx - uncomment to autoplay
+    
     # Show score
     # score_string = score_font.render(("Score: " + str(score)), True, white)
     # DISPLAYSURF.blit(score_string, (30, 30))
