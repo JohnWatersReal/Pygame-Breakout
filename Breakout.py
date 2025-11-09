@@ -43,7 +43,7 @@ relic_width = 40
 relic_height = 40
 
 # Transition states
-GAME_STATE = 1
+GAME_STATE = 0
 PLAY_SCREEN = 0
 RELIC_SCREEN = 1
 
@@ -108,7 +108,6 @@ class Relic(pygame.sprite.Sprite):
         if (self.rect.collidepoint(pygame.mouse.get_pos()) and clicked):
             self.on_pickup()
             player.surf = pygame.transform.scale(self.surf, (3, 1))
-            player.center()
             global GAME_STATE
             GAME_STATE = PLAY_SCREEN
     
@@ -246,6 +245,8 @@ def do_play_loop():
     if not enemies:
         spawn(3, 2, enemies)
         GAME_STATE = RELIC_SCREEN
+        player.center()
+        projectile.__init__(player)
     else:
         GAME_STATE = PLAY_SCREEN
         
