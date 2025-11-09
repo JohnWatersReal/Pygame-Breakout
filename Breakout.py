@@ -28,8 +28,8 @@ FramePerSec = pygame.time.Clock()
 pygame.display.set_caption("Game")
 
 # Setting up fonts
-score_font = pygame.font.SysFont("Comic_sans", 60)
-high_score_font = pygame.font.SysFont("Comic_sans", 30, False, True)
+name_font = pygame.font.SysFont("Comic_sans", 60)
+desc_font = pygame.font.SysFont("Comic_sans", 30, False, True)
 
 # Setting up pause screen
 pause_rect = Rect(window_width/3, window_height/3, window_width/3, window_height/3)
@@ -39,11 +39,11 @@ ball_speed_x = 4
 ball_speed_y = 2 * ball_speed_x
 ball_vector = pygame.Vector2(ball_speed_x, ball_speed_y)
 player_width = 100
-relic_width = 20
-relic_height = 20
+relic_width = 40
+relic_height = 40
 
 # Transition states
-GAME_STATE = 0
+GAME_STATE = 1
 PLAY_SCREEN = 0
 RELIC_SCREEN = 1
 
@@ -66,6 +66,9 @@ class Player(pygame.sprite.Sprite):
     def draw(self, surface):
         pygame.draw.rect(surface, grey, self.rect, 0, 8)
         #pygame.draw.line(surface, red, (self.rect.x, self.rect.y), (self.rect.right, self.rect.y)) - uncomment to see hitbox
+        
+    def center(self):
+        self.rect.centerx = window_width/2
         
 class Enemy(pygame.sprite.Sprite):
     def __init__(self, x, y):
@@ -101,8 +104,32 @@ class Relic(pygame.sprite.Sprite):
         self.surf = pygame.Surface((relic_width, relic_height))
         self.rect = self.surf.get_rect()
         
-    def on_pickup():
-        return
+    def hover(self, clicked, player):
+        if (self.rect.collidepoint(pygame.mouse.get_pos()) and clicked):
+            self.on_pickup()
+            player.surf = pygame.transform.scale(self.surf, (3, 1))
+            player.center()
+            return PLAY_SCREEN
+        else:
+            return RELIC_SCREEN
+    
+    def draw(self, surface, rect):
+        if (rect.collidepoint(pygame.mouse.get_pos())) or (self.rect.collidepoint(pygame.mouse.get_pos())):
+            old_center = rect.center
+            new_surf = pygame.transform.scale(self.surf, (relic_width * 2, relic_height * 2))
+            new_rect = new_surf.get_rect(center=old_center)
+            surface.blit(new_surf, new_rect)
+            self.rect = new_rect
+            # draw the description and name
+            
+            name_string = name_font.render((self.name), True, white)
+            DISPLAYSURF.blit(name_string, ((window_width - name_string.get_width())/2, 200))
+            desc_string = desc_font.render((self.desc), True, white)
+            DISPLAYSURF.blit(desc_string, ((window_width - desc_string.get_width())/2, 400))
+            
+        else:
+            self.rect = rect
+            surface.blit(self.surf, rect)
     
 class Lengthen(Relic):
     def __init__(self):
@@ -110,13 +137,16 @@ class Lengthen(Relic):
         self.name = "Lengthen"
         self.desc = "Extend the paddle by 15%"
         self.surf.fill(green)
+        
+    def on_pickup(self):
+        player.rect.width *= 3
+            
             
 def spawn(xNumber, yNumber, array):
     for y in range(yNumber):
         for x in range(xNumber):
             enemy = Enemy((window_width - ((100 * xNumber) + 10 * (xNumber - 1)))/2 + x * 110, 200 + y * 30)
-            array.append(enemy)
-              
+            array.append(enemy)          
 
 def pause_check(paused):
     while (paused):
@@ -127,9 +157,14 @@ def pause_check(paused):
             if event.type == KEYDOWN:
                 if event.key == K_ESCAPE:
                     paused = False 
+                    
+rect = Rect(window_width/3, window_height/2, relic_width, relic_height)
+relic = Lengthen()
 
-def do_relic_loop():
+def do_relic_loop(clicked, player):
     DISPLAYSURF.fill(black)
+    relic.draw(DISPLAYSURF, rect)
+    return relic.hover(clicked, player)   
 
 def do_play_loop():
     # Draw the background
@@ -198,12 +233,11 @@ def do_play_loop():
 player = Player()
 projectile = Projectile(player)
 enemies = []
-relic = Lengthen()
-
 
 # ===== GAME LOOP BEGIN ===== #
 while True:
     
+    clicked = False
     # Handle events
     for event in pygame.event.get():
         if event.type == QUIT:
@@ -217,19 +251,23 @@ while True:
                 DISPLAYSURF.blit(paused, rect)
                 pygame.display.update()
                 pause_check(True)
+        elif event.type == MOUSEBUTTONDOWN:
+            if event.button == 1:
+                clicked = True
                 
     if not enemies:
         spawn(2, 2, enemies)
     if GAME_STATE == PLAY_SCREEN:
        GAME_STATE = do_play_loop()
     elif GAME_STATE == RELIC_SCREEN:
-        do_relic_loop()
+       GAME_STATE = do_relic_loop(clicked, player)
     
     #player.rect.centerx = projectile.rect.centerx #- uncomment to autoplay
     
     
     pygame.display.update()
     FramePerSec.tick(FPS)
+    clicked = False
     
 # Show score - for reference
     # score_string = score_font.render(("Score: " + str(score)), True, white)
