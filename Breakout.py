@@ -169,9 +169,9 @@ def pause_check(paused):
                 if event.key == K_ESCAPE:
                     paused = False 
                     
-rect = Rect(window_width/3, window_height/2, relic_width, relic_height)
-rect1 = Rect(window_width/2, window_height/2, relic_width, relic_height)
-rect2 = Rect(window_width/3 * 2, window_height/2, relic_width, relic_height)
+rect = Rect(window_width/3 - relic_width/2, window_height/2, relic_width, relic_height)
+rect1 = Rect(window_width/2 - relic_width/2, window_height/2, relic_width, relic_height)
+rect2 = Rect(window_width/3 * 2 - relic_width/2, window_height/2, relic_width, relic_height)
 relic = Lengthen()
 relic1 = Speedy()
 relic2 = Lengthen()
