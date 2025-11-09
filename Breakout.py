@@ -52,16 +52,16 @@ class Player(pygame.sprite.Sprite):
         super().__init__()
         self.x = 400
         self.y = 850
+        self.dx = 10
         self.surf = pygame.Surface((player_width, 20))
         self.rect = self.surf.get_rect(topleft=(self.x, self.y))
         
     def handle_keys(self):
         key = pygame.key.get_pressed()
-        dx = 10
         if key[pygame.K_LEFT]:
-            self.rect = self.rect.move(-dx, 0)
+            self.rect = self.rect.move(-self.dx, 0)
         elif key[pygame.K_RIGHT]:
-            self.rect = self.rect.move(dx, 0)
+            self.rect = self.rect.move(self.dx, 0)
             
     def draw(self, surface):
         pygame.draw.rect(surface, grey, self.rect, 0, 8)
@@ -109,19 +109,20 @@ class Relic(pygame.sprite.Sprite):
             self.on_pickup()
             player.surf = pygame.transform.scale(self.surf, (3, 1))
             player.center()
-            return PLAY_SCREEN
-        else:
-            return RELIC_SCREEN
+            global GAME_STATE
+            GAME_STATE = PLAY_SCREEN
     
     def draw(self, surface, rect):
         if (rect.collidepoint(pygame.mouse.get_pos())) or (self.rect.collidepoint(pygame.mouse.get_pos())):
+            
+            # Get bigger on hover
             old_center = rect.center
             new_surf = pygame.transform.scale(self.surf, (relic_width * 2, relic_height * 2))
             new_rect = new_surf.get_rect(center=old_center)
             surface.blit(new_surf, new_rect)
             self.rect = new_rect
-            # draw the description and name
             
+            # Draw the description and name
             name_string = name_font.render((self.name), True, white)
             DISPLAYSURF.blit(name_string, ((window_width - name_string.get_width())/2, 200))
             desc_string = desc_font.render((self.desc), True, white)
@@ -139,7 +140,17 @@ class Lengthen(Relic):
         self.surf.fill(green)
         
     def on_pickup(self):
-        player.rect.width *= 3
+        player.rect.width *= 1.15
+        
+class Speedy(Relic):
+    def __init__(self):
+        super().__init__()
+        self.name = "Speed up!"
+        self.desc = "Make the paddle 30% faster"
+        self.surf.fill(red)
+        
+    def on_pickup(self):
+        player.dx *= 1.3
             
             
 def spawn(xNumber, yNumber, array):
@@ -159,12 +170,20 @@ def pause_check(paused):
                     paused = False 
                     
 rect = Rect(window_width/3, window_height/2, relic_width, relic_height)
+rect1 = Rect(window_width/2, window_height/2, relic_width, relic_height)
+rect2 = Rect(window_width/3 * 2, window_height/2, relic_width, relic_height)
 relic = Lengthen()
+relic1 = Speedy()
+relic2 = Lengthen()
 
 def do_relic_loop(clicked, player):
     DISPLAYSURF.fill(black)
     relic.draw(DISPLAYSURF, rect)
-    return relic.hover(clicked, player)   
+    relic1.draw(DISPLAYSURF, rect1)
+    relic2.draw(DISPLAYSURF, rect2)
+    relic.hover(clicked, player) 
+    relic1.hover(clicked, player)
+    relic2.hover(clicked, player)   
 
 def do_play_loop():
     # Draw the background
@@ -222,11 +241,13 @@ def do_play_loop():
     # Spawn enemies
     for entity in enemies:
         entity.draw(DISPLAYSURF)
+    
+    global GAME_STATE
     if not enemies:
         spawn(3, 2, enemies)
-        return RELIC_SCREEN
+        GAME_STATE = RELIC_SCREEN
     else:
-        return PLAY_SCREEN
+        GAME_STATE = PLAY_SCREEN
         
 
 # Global variables
@@ -246,7 +267,7 @@ while True:
         elif event.type == KEYDOWN:
             if event.key == K_ESCAPE:
                 pygame.draw.rect(DISPLAYSURF, white, pause_rect)
-                paused = score_font.render("PAUSED", True, black)
+                paused = name_font.render("PAUSED", True, black)
                 rect = paused.get_rect(center=(window_width/2, window_height/2))
                 DISPLAYSURF.blit(paused, rect)
                 pygame.display.update()
@@ -258,9 +279,9 @@ while True:
     if not enemies:
         spawn(2, 2, enemies)
     if GAME_STATE == PLAY_SCREEN:
-       GAME_STATE = do_play_loop()
+       do_play_loop()
     elif GAME_STATE == RELIC_SCREEN:
-       GAME_STATE = do_relic_loop(clicked, player)
+       do_relic_loop(clicked, player)
     
     #player.rect.centerx = projectile.rect.centerx #- uncomment to autoplay
     
